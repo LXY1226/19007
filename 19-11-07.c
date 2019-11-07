@@ -30,6 +30,44 @@ void yanghuiA() {
     }
 }
 
+/*
+1 0 0 0
+1 1 0 0
+1 2 1 0
+1 3 3 1
+*/
+
+void yangh() {
+	int count;
+	scanf("%d", &count);
+	int a[count][count];
+	int i;
+	memset(&a, 0, sizeof(a));
+	for(i = 0;i<count;i++){
+		int j;
+		for(j=0;j<count;j++){
+			a[i][j] = 0;
+		}
+	}
+	a[0][0]=1;
+	for (i = 1;i<count;i++){
+		a[i][0] = a[i - 1][0];
+		int j;
+		for (j = 1;j < i;j++){
+			a[i][j] = a[i-1][j] + a[i-1][j-1];
+		}
+	}
+	for (i = 0;i<count;i++){
+		int j;
+		for(j = 0;j<i;j++){
+			printf("%d ",a[i][j]);
+		}
+		printf("\n");
+	}
+	
+} 
+
+
 void yanghui() {
     int a[nums][nums] = {0};
     a[0][0] = 1;
@@ -56,6 +94,25 @@ void fibonacciA() {
 }
 
 //斐波那契数组实现 
+//1 1 2 3 5 8.... 
+void f() {
+	int count;
+	scanf("%d", &count);
+	int a[count];
+	a[0] = 1;
+	a[1] = 1;
+	int i;
+	for (i=2;i<count;i++){
+		a[i] = a[i-1] +a[i-2];
+	}
+	for (i=0;i<count;i++){
+		printf("%d ", a[i]);
+	}
+}
+
+
+
+
 void fibonacci() {
     int a[nums];
     a[0]=a[1]=1;
@@ -68,6 +125,6 @@ void fibonacci() {
 }
 
 int main() {
-    fibonacci();
+    yangh();
 }
 
