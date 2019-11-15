@@ -10,23 +10,25 @@
 
 (function () {
     console.log("Happy Mooc");
-    function formatTime(time){
-        Number.prototype.padLeft = function(total, pad) {
+
+    function formatTime(time) {
+        Number.prototype.padLeft = function (total, pad) {
             return (Array(total).join(pad || 0) + this).slice(-total);
         }
-        var min = Math.round(time / 60)
+        var min = parseInt(time / 60)
         var sec = time % 60
-        return min.padLeft(2,0) +":" + sec.padLeft(2,0);
+        return min.padLeft(2, 0) + ":" + sec.padLeft(2, 0);
     }
+
     function doTime(endTime, data, finishFunc, statElem) {
         statElem.innerText = formatTime(data.endSecond) + "/" + formatTime(endTime);
         var i = setInterval(() => {
-            if (data.endSecond > endTime) {
+            data.endSecond += 30;
+            if ((data.endSecond + 30) > endTime) {
                 window.clearInterval(i);
-                finishFunc();
+                finishFunc((endTime - data.endSecond) * 1000);
                 return;
             }
-            data.endSecond += 30;
             statElem.innerText = formatTime(data.endSecond) + "/" + formatTime(endTime);
             $.post("//www.neumooc.com/course/play/updatePlayInfo", data)
         }, 30000)
@@ -60,11 +62,13 @@
                             } else {
                                 window.location.href = getContextPath() + "/login";
                             }
-                            var finishFunc = () => {
-                                $.post("//www.neumooc.com/course/play/updatePlayInfo", "uvId=" + uvId + "&videoId=" + videoId + "&endSecond=" + second
-                                    + "&completeFlag=complete", () => {
-                                    this.firstElementChild.innerText = "完成"
-                                })
+                            var finishFunc = (endTime) => {
+                                setTimeout(() => {
+                                    $.post("//www.neumooc.com/course/play/updatePlayInfo", "uvId=" + uvId + "&videoId=" + videoId + "&endSecond=" + second
+                                        + "&completeFlag=complete", () => {
+                                        this.firstElementChild.innerText = "完成"
+                                    })
+                                }, endTime);
                             }
                             doTime(second, {
                                 uvId: uvId,
@@ -72,7 +76,7 @@
                                 endSecond: 0,
                                 completeFlag: ""
                             }, finishFunc, statElem);
-                        finishFunc();
+                            // finishFunc();
                         })
                 })
         })
