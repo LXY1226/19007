@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeuMOOC
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.1.1
 // @description  do other things that more valuable
 // @author       You
 // @match        www.neumooc.com/course/play/*
