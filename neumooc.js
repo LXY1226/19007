@@ -4,11 +4,15 @@
 // @version      0.1
 // @description  do other things that more valuable
 // @author       You
-// run-at       document-start
 // @match        www.neumooc.com/course/play/*
 // ==/UserScript==
 
 (function () {
+    var rush = false,
+        labels = $("span.label"),
+        threads = 5,
+        videos = [];
+
     console.log("Happy Mooc");
 
     function formatTime(time) {
@@ -34,56 +38,88 @@
         }, 30000)
     }
 
-    function finishVideo(e) {
+    function startRush(e) {
         e.stopPropagation()
         e.preventDefault()
-        var statElem = this.firstElementChild;
-        statElem.innerText = "处理中"
-        var courseId = this.href.split("courseId=")[1].split("&")[0]
-        var outlineId = this.href.split("outlineId=")[1]
-        var resId, entityId;
-        $.get(this.href, (data) => {
-            var newDocument = (new DOMParser()).parseFromString(data, 'text/html');
-            resId = newDocument.getElementById("fResId").value;
-            entityId = newDocument.getElementById("fResId").value;
-            $.post("//www.neumooc.com/course/play/getOutlineResInfo",
-                "resId=" + resId + "&resType=1&outlineId="
-                + outlineId + "&courseId=" + courseId + "&entityId="
-                + entityId, (data) => {
-                    var second = parseInt(data.resInfo.videoSecond) + 1;
-                    var videoId = data.resInfo.videoId;
-                    $.post("//www.neumooc.com/course/play/addPlayInfo",
-                        "videoId=" + videoId + "&startSecond=" + 0
-                        + "&courseId=" + courseId + "&outlineId=" + outlineId, (data) => {
-                            if (data.isOut != "out") {
-                                if (data != null && data.uvId != null) {
-                                    var uvId = data.uvId;
-                                }
-                            } else {
-                                window.location.href = getContextPath() + "/login";
-                            }
-                            var finishFunc = (endTime) => {
-                                setTimeout(() => {
-                                    $.post("//www.neumooc.com/course/play/updatePlayInfo", "uvId=" + uvId + "&videoId=" + videoId + "&endSecond=" + second
-                                        + "&completeFlag=complete", () => {
-                                        this.firstElementChild.innerText = "完成"
-                                    })
-                                }, endTime);
-                            }
-                            doTime(second, {
-                                uvId: uvId,
-                                videoId: videoId,
-                                endSecond: 0,
-                                completeFlag: ""
-                            }, finishFunc, statElem);
-                            // finishFunc();
-                        })
-                })
-        })
+        for (var i = 0; i < threads; i++) {
+            finishVideo(videos.pop())
+        }
     }
 
-    var labels = $("span.label");
-    for (var i = 0; i < labels.length; i++) {
-        labels[i].firstElementChild.onclick = finishVideo
+    function initVideo(labels, i) {
+        var a = labels[i].firstElementChild,
+            statElem = a.firstElementChild;
+        a.onclick = startRush;
+        a.data = {}
+        a.data.courseId = a.href.split("courseId=")[1].split("&")[0];
+        a.data.outlineId = a.href.split("outlineId=")[1];
+        //获取已观看时间
+        $.post("//www.neumooc.com/course/play/getOutlineInfoAjax",
+            "outlineId=" + a.data.outlineId + "&courseId=" + a.data.courseId,
+            (data) => {
+                a.data.doneTime = parseInt(data.RET_OBJ.viewVideoTime);
+                //获取视频信息
+                $.get(a.href, (data) => {
+                    var newDocument = (new DOMParser()).parseFromString(data, 'text/html');
+                    a.data.resId = newDocument.getElementById("fResId").value;
+                    a.data.entityId = newDocument.getElementById("fResId").value;
+                    //获取视频时间、ID
+                    $.post("//www.neumooc.com/course/play/getOutlineResInfo",
+                        "resId=" + a.data.resId + "&resType=1&outlineId="
+                        + a.data.outlineId + "&courseId=" + a.data.courseId + "&entityId="
+                        + a.data.entityId, (data) => {
+                            if (i < labels.length) {
+                                initVideo(labels, i + 1)
+                            }
+                            a.data.fullTime = parseInt(data.resInfo.videoSecond) + 1;
+                            a.data.videoId = data.resInfo.videoId;
+                            if (a.data.doneTime >= a.data.fullTime) {
+                                statElem.innerText = "全部完成"
+                            } else {
+                                statElem.innerText = formatTime(a.data.doneTime) + "/" + formatTime(a.data.fullTime)
+                                a.parentElement.className = "label bg-color-orange"
+                                videos.push(a)
+                            }
+                        })
+                })
+            })
+
     }
+
+    function finishVideo(a) {
+        let startTime = parseInt(a.data.doneTime / 30) * 30
+        a.parentElement.className = "label bg-color-blue"
+        $.post("//www.neumooc.com/course/play/addPlayInfo",
+            "videoId=" + a.data.videoId + "&startSecond=0&courseId="
+            + a.data.courseId + "&outlineId=" + a.data.outlineId, (data) => {
+                if (data.isOut != "out") {
+                    if (data != null && data.uvId != null) {
+                        a.data.uvId = data.uvId;
+                    }
+                } else {
+                    window.location.href = getContextPath() + "/login";
+                }
+                var finishFunc = (endTime) => {
+                    setTimeout(() => {
+                        $.post("//www.neumooc.com/course/play/updatePlayInfo",
+                            "uvId=" + a.data.uvId + "&videoId=" + a.data.videoId + "&endSecond=" + a.data.fullTime
+                            + "&completeFlag=complete", () => {
+                                a.firstElementChild.innerText = "全部完成";
+                                a.parentElement.className = "label bg-color-green"
+                            });
+                        finishVideo(videos.pop())
+                    }, endTime);
+                };
+                setTimeout(() => {
+                    doTime(a.data.fullTime, {
+                        uvId: a.data.uvId,
+                        videoId: a.data.videoId,
+                        endSecond: startTime,
+                        completeFlag: ""
+                    }, finishFunc, a.firstElementChild);
+                }, parseInt(Math.random() * 30000))
+            });
+    }
+
+    initVideo(labels, 0);
 })();
