@@ -131,4 +131,5 @@
     }
 
     initVideo(labels, 0);
+    $("#chapterList")[0].style = undefined
 })();
