@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NeuMOOC
 // @namespace    http://tampermonkey.net/
-// @version      0.1.1
+// @version      0.15
 // @description  do other things that more valuable
 // @author       You
 // @match        www.neumooc.com/course/play/*
@@ -76,6 +76,8 @@
                             if (a.data.doneTime >= a.data.fullTime) {
                                 statElem.innerText = "全部完成"
                             } else {
+                                if (isNaN(a.data.doneTime)) {a.data.doneTime = 0;}
+                                console.log(a.data.doneTime)
                                 statElem.innerText = formatTime(a.data.doneTime) + "/" + formatTime(a.data.fullTime)
                                 a.parentElement.className = "label bg-color-orange"
                                 videos.push(a)
@@ -89,36 +91,37 @@
     function finishVideo(a) {
         let startTime = parseInt(a.data.doneTime / 30) * 30
         a.parentElement.className = "label bg-color-blue"
-        $.post("//www.neumooc.com/course/play/addPlayInfo",
-            "videoId=" + a.data.videoId + "&startSecond=0&courseId="
-            + a.data.courseId + "&outlineId=" + a.data.outlineId, (data) => {
-                if (data.isOut != "out") {
-                    if (data != null && data.uvId != null) {
-                        a.data.uvId = data.uvId;
+        setTimeout(
+            $.post("//www.neumooc.com/course/play/addPlayInfo",
+                "videoId=" + a.data.videoId + "&startSecond=0&courseId="
+                + a.data.courseId + "&outlineId=" + a.data.outlineId, (data) => {
+                    if (data.isOut != "out") {
+                        if (data != null && data.uvId != null) {
+                            a.data.uvId = data.uvId;
+                        }
+                    } else {
+                        window.location.href = getContextPath() + "/login";
                     }
-                } else {
-                    window.location.href = getContextPath() + "/login";
-                }
-                var finishFunc = (endTime) => {
-                    setTimeout(() => {
-                        $.post("//www.neumooc.com/course/play/updatePlayInfo",
-                            "uvId=" + a.data.uvId + "&videoId=" + a.data.videoId + "&endSecond=" + a.data.fullTime
-                            + "&completeFlag=complete", () => {
-                                a.firstElementChild.innerText = "全部完成";
-                                a.parentElement.className = "label bg-color-green"
-                            });
-                        finishVideo(videos.pop())
-                    }, endTime);
-                };
-                setTimeout(() => {
-                    doTime(a.data.fullTime, {
-                        uvId: a.data.uvId,
-                        videoId: a.data.videoId,
-                        endSecond: startTime,
-                        completeFlag: ""
-                    }, finishFunc, a.firstElementChild);
-                }, parseInt(Math.random() * 30000))
-            });
+                    var finishFunc = (endTime) => {
+                        setTimeout(() => {
+                            $.post("//www.neumooc.com/course/play/updatePlayInfo",
+                                "uvId=" + a.data.uvId + "&videoId=" + a.data.videoId + "&endSecond=" + a.data.fullTime
+                                + "&completeFlag=complete", () => {
+                                    a.firstElementChild.innerText = "全部完成";
+                                    a.parentElement.className = "label bg-color-green"
+                                });
+                            finishVideo(videos.pop())
+                        }, endTime);
+                    };
+                    () => {
+                        doTime(a.data.fullTime, {
+                            uvId: a.data.uvId,
+                            videoId: a.data.videoId,
+                            endSecond: startTime,
+                            completeFlag: ""
+                        }, finishFunc, a.firstElementChild);
+                    }
+                }), parseInt(Math.random() * 30000))
     }
 
     initVideo(labels, 0);
