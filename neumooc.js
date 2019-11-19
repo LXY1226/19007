@@ -1,7 +1,6 @@
 // ==UserScript==
 // @name         NeuMOOC
-// @namespace    http://tampermonkey.net/
-// @version      0.17-2019-11-19
+// @version      0.18-2019-11-19
 // @description  do other things that more valuable
 // @author       You
 // @match        www.neumooc.com/course/play/*
@@ -11,8 +10,9 @@
     var rush = false,
         labels = $("span.label"),
         threads = 5,
-        videos = [];
-
+        videos = [],
+        totalElem = $("h2")[0],
+        doneTime = 0,fullTime = 0;
     console.log("Happy Mooc");
 
     function formatTime(time) {
@@ -23,7 +23,9 @@
         var sec = time % 60
         return min.padLeft(2, 0) + ":" + sec.padLeft(2, 0);
     }
-
+    function freshTime() {
+        totalElem.innerText = "目录" + doneTime + "/" +fullTime;
+    }
     function doTime(endTime, data, finishFunc, statElem) {
         statElem.innerText = formatTime(data.endSecond) + "/" + formatTime(endTime);
         var i = setInterval(() => {
@@ -34,6 +36,8 @@
                 return;
             }
             statElem.innerText = formatTime(data.endSecond) + "/" + formatTime(endTime);
+            doneTime += 30;
+            freshTime();
             $.post("//www.neumooc.com/course/play/updatePlayInfo", data)
         }, 30000)
         }
@@ -73,11 +77,14 @@
                        + a.data.entityId, (data) => {
                     a.data.fullTime = parseInt(data.resInfo.videoSecond) + 1;
                     a.data.videoId = data.resInfo.videoId;
+                    if (isNaN(a.data.doneTime)) {a.data.doneTime = 0};
+                    doneTime += a.data.doneTime;
+                    fullTime += a.data.fullTime;
+                    freshTime();
+                    statElem.innerText = formatTime(a.data.doneTime) + "/" + formatTime(a.data.fullTime)
                     if (a.data.doneTime >= a.data.fullTime) {
-                        statElem.innerText = "全部完成"
+                        a.parentElement.className = "label bg-color-green"
                     } else {
-                        if (isNaN(a.data.doneTime)) {a.data.doneTime = 0}
-                        statElem.innerText = formatTime(a.data.doneTime) + "/" + formatTime(a.data.fullTime)
                         a.parentElement.className = "label bg-color-orange"
                         videos.push(a)
                     }
@@ -90,17 +97,17 @@
     function finishVideo(a) {
         let startTime = parseInt(a.data.doneTime / 30) * 30
         a.parentElement.className = "label bg-color-blue"
-        setTimeout(() => {
-            $.post("//www.neumooc.com/course/play/addPlayInfo",
-                   "videoId=" + a.data.videoId + "&startSecond=0&courseId="
-                   + a.data.courseId + "&outlineId=" + a.data.outlineId, (data) => {
-                if (data.isOut != "out") {
-                    if (data != null && data.uvId != null) {
-                        a.data.uvId = data.uvId;
-                    }
-                } else {
-                    window.location.href = getContextPath() + "/login";
+        $.post("//www.neumooc.com/course/play/addPlayInfo",
+               "videoId=" + a.data.videoId + "&startSecond=0&courseId="
+               + a.data.courseId + "&outlineId=" + a.data.outlineId, (data) => {
+            if (data.isOut != "out") {
+                if (data != null && data.uvId != null) {
+                    a.data.uvId = data.uvId;
                 }
+            } else {
+                window.location.href = getContextPath() + "/login";
+            }
+            setTimeout(() => {
                 doTime(a.data.fullTime, {
                     uvId: a.data.uvId,
                     videoId: a.data.videoId,
@@ -111,7 +118,9 @@
                         $.post("//www.neumooc.com/course/play/updatePlayInfo",
                                "uvId=" + a.data.uvId + "&videoId=" + a.data.videoId + "&endSecond=" + a.data.fullTime
                                + "&completeFlag=complete", () => {
-                            a.firstElementChild.innerText = "全部完成";
+                            doneTime += endTime / 1000;
+                            freshTime();
+                            a.firstElementChild.innerText = "已完成";
                             a.parentElement.className = "label bg-color-green"
                         });
                         finishVideo(videos.pop())
