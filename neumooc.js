@@ -126,10 +126,10 @@
                         finishVideo(videos.pop())
                     }, endTime);
                 }, a.firstElementChild);
-            })
-        }, parseInt(Math.random() * 30000))
+            }, parseInt(Math.random() * 30000))
+        })
     }
 
     initVideo(labels, 0);
-    $("#chapterList")[0].style = undefined
+    $("#chapterList")[0].style = undefined;
 })();
